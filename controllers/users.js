@@ -6,20 +6,31 @@ const getUsers = (req, res) => {
 };
 
 const getUser = (req, res) => {
-  User.findOne({ userId: req.params.id })
+  User.findOne({ _id: req.params.userId })
     .then((user) => {
       if (!user) {
         res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
       } else {
         res.status(200).send(user);
       }
-    })
-    .catch(() => res.status(500).send({ message: 'Ошибка по умолчанию' }));
+    }).catch((err) => {
+      if (err.name === 'CastError') {
+        res.status(400).send({ message: 'Переданы некорректные данные id' });
+      } else {
+        res.status(500).send({ message: 'Ошибка по умолчанию' });
+      }
+    });
 };
 
 const postUser = (req, res) => {
   User.create(req.body).then((user) => res.status(201).send(user))
-    .catch(() => res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' }));
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' });
+      } else {
+        res.status(500).send({ message: 'Ошибка по умолчанию' });
+      }
+    });
 };
 
 const changeUserData = (req, res) => {
@@ -30,12 +41,11 @@ const changeUserData = (req, res) => {
       } else {
         res.status(200).send(user);
       }
-    })
-    .catch(() => {
-      if (res.status === 500) {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
-      } else if (res.status === 400) {
+    }).catch((err) => {
+      if (err.name === 'ValidationError') {
         res.status(400).send({ message: 'Переданы некорректные данные при обновлении профиля' });
+      } else {
+        res.status(500).send({ message: 'Ошибка по умолчанию' });
       }
     });
 };
@@ -48,12 +58,11 @@ const changeAvatar = (req, res) => {
       } else {
         res.status(200).send(user);
       }
-    })
-    .catch(() => {
-      if (res.status === 500) {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
-      } else if (res.status === 400) {
+    }).catch((err) => {
+      if (err.name === 'ValidationError') {
         res.status(400).send({ message: 'Переданы некорректные данные при обновлении аватара' });
+      } else {
+        res.status(500).send({ message: 'Ошибка по умолчанию' });
       }
     });
 };
