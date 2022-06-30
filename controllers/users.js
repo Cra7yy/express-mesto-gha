@@ -23,7 +23,8 @@ const getUser = (req, res) => {
 };
 
 const postUser = (req, res) => {
-  User.create(req.body).then((user) => res.status(201).send(user))
+  const { name, about, avatar } = req.body;
+  User.create({ name, about, avatar }).then((user) => res.status(201).send(user))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' });
@@ -34,7 +35,8 @@ const postUser = (req, res) => {
 };
 
 const changeUserData = (req, res) => {
-  User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true })
+  const { name, about } = req.body;
+  User.findByIdAndUpdate(req.user._id, { name, about }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
         res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
@@ -51,7 +53,8 @@ const changeUserData = (req, res) => {
 };
 
 const changeAvatar = (req, res) => {
-  User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true })
+  const { avatar } = req.body;
+  User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
         res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
