@@ -6,7 +6,7 @@ const getCards = (req, res) => {
 };
 
 const postCard = (req, res) => {
-  const owner = req.uer._id;
+  const owner = req.user._id;
   const { name, link } = req.body;
   Card.create({ owner, name, link }).then((card) => res.status(201).send(card))
     .catch((err) => {
