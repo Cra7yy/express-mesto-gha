@@ -1,36 +1,101 @@
+const bcrypt = require('bcrypt');
 const User = require('../models/user');
+const {generateToken} = require('../helpers/jwt')
+
+const MONGO_DUPLICATE_ERROR_CODE = 11000;
+const SALT_ROUNDS = 10;
+
+const invalidData = () => {
+  const error = new Error('переданы некоректные данные');
+  error.statusCode = 400;
+  throw error;
+};
+
+const errUserId = () => {
+  const error = new Error('Пользователь по указанному _id не найден');
+  error.statusCode = 404;
+  throw error;
+};
+
+const notForwardedRegistrationData = () => {
+  const error = new Error('неправильный email или password');
+  error.statusCode = 403;
+  throw error;
+};
 
 const getUsers = (req, res) => {
-  User.find({}).then((users) => res.status(200).send(users))
-    .catch(() => res.status(500).send({ message: 'Ошибка по умолчанию' }));
+  User.find({}).then((users) => res.status(200).send(users));
 };
 
 const getUser = (req, res) => {
   User.findOne({ _id: req.params.userId })
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
+        throw new errUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'CastError') {
-        res.status(400).send({ message: 'Переданы некорректные данные id' });
-      } else {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
+        throw new invalidData();
       }
     });
 };
 
 const postUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar }).then((user) => res.status(201).send(user))
+  const {
+    name,
+    about,
+    avatar,
+    email,
+    password,
+  } = req.body;
+  if (!email || !password) {
+    invalidData();
+  }
+  bcrypt
+    .hash(password, SALT_ROUNDS)
+    .then((hash) => User.create({
+      name,
+      about,
+      avatar,
+      email,
+      password: hash,
+    }))
+    .then((user) => res.status(201).send(user))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' });
-      } else {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
+        throw new invalidData();
       }
+      if (err.code === MONGO_DUPLICATE_ERROR_CODE) {
+        return res.status(409).send({ message: 'email занят' });
+      }
+    });
+};
+
+const login = (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    throw new invalidData();
+  }
+  User.findOne({ email })
+    .then((user) => {
+      if (!user) {
+        throw new notForwardedRegistrationData();
+      }
+      return Promise.all([
+        user,
+        bcrypt.compare(password, user.password),
+      ]);
+    })
+    .then(([user, isPasswordCorrect]) => {
+      if (!isPasswordCorrect) {
+        throw new notForwardedRegistrationData();
+      }
+      return generateToken({ email: user.email });
+    })
+    .then((token) => {
+      res.send({ token });
     });
 };
 
@@ -39,15 +104,13 @@ const changeUserData = (req, res) => {
   User.findByIdAndUpdate(req.user._id, { name, about }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
+        throw new errUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({ message: 'Переданы некорректные данные при обновлении профиля' });
-      } else {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
+        throw new invalidData();
       }
     });
 };
@@ -57,15 +120,13 @@ const changeAvatar = (req, res) => {
   User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
-        res.status(404).send({ message: 'Пользователь по указанному _id не найден' });
+        throw new errUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(400).send({ message: 'Переданы некорректные данные при обновлении аватара' });
-      } else {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
+        throw new invalidData();
       }
     });
 };
@@ -76,4 +137,5 @@ module.exports = {
   postUser,
   changeUserData,
   changeAvatar,
+  login,
 };
