@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
-
 const bodyParser = require('body-parser');
+
 const userRouter = require('./routes/users');
 const cardRouter = require('./routes/cards');
 const {
@@ -30,8 +30,7 @@ app.use((err, req, res, next) => {
   if (err.statusCode) {
     return res.status(err.statusCode).send({ message: err.message });
   }
-  console.error(err.stack);
-  res.status(500).send({ message: 'Что-то пошло не так'});
+  return res.status(500).send({ message: 'Что-то пошло не так' });
 });
 
 app.listen(port);

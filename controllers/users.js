@@ -1,23 +1,23 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
-const {generateToken} = require('../helpers/jwt')
+const { generateToken } = require('../helpers/jwt');
 
 const MONGO_DUPLICATE_ERROR_CODE = 11000;
 const SALT_ROUNDS = 10;
 
-const invalidData = () => {
+const InvalidData = () => {
   const error = new Error('переданы некоректные данные');
   error.statusCode = 400;
   throw error;
 };
 
-const errUserId = () => {
+const ErrUserId = () => {
   const error = new Error('Пользователь по указанному _id не найден');
   error.statusCode = 404;
   throw error;
 };
 
-const notForwardedRegistrationData = () => {
+const NotForwardedRegistrationData = () => {
   const error = new Error('неправильный email или password');
   error.statusCode = 403;
   throw error;
@@ -27,17 +27,17 @@ const getUsers = (req, res) => {
   User.find({}).then((users) => res.status(200).send(users));
 };
 
-const getUser = (req, res) => {
+const getUserId = (req, res) => {
   User.findOne({ _id: req.params.userId })
     .then((user) => {
       if (!user) {
-        throw new errUserId();
+        throw new ErrUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'CastError') {
-        throw new invalidData();
+        throw new InvalidData();
       }
     });
 };
@@ -51,7 +51,7 @@ const postUser = (req, res) => {
     password,
   } = req.body;
   if (!email || !password) {
-    invalidData();
+    InvalidData();
   }
   bcrypt
     .hash(password, SALT_ROUNDS)
@@ -64,33 +64,18 @@ const postUser = (req, res) => {
     }))
     .then((user) => res.status(201).send(user))
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        throw new invalidData();
-      }
-      if (err.code === MONGO_DUPLICATE_ERROR_CODE) {
-        return res.status(409).send({ message: 'email занят' });
-      }
+      if (err.name === 'ValidationError') throw new InvalidData();
+      if (err.code === MONGO_DUPLICATE_ERROR_CODE) res.status(409).send({ message: 'email занят' });
     });
 };
 
 const login = (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    throw new invalidData();
-  }
-  User.findOne({ email })
+
+  return User.findUserByCredentials(email, password)
     .then((user) => {
       if (!user) {
-        throw new notForwardedRegistrationData();
-      }
-      return Promise.all([
-        user,
-        bcrypt.compare(password, user.password),
-      ]);
-    })
-    .then(([user, isPasswordCorrect]) => {
-      if (!isPasswordCorrect) {
-        throw new notForwardedRegistrationData();
+        throw new NotForwardedRegistrationData();
       }
       return generateToken({ email: user.email });
     })
@@ -104,13 +89,13 @@ const changeUserData = (req, res) => {
   User.findByIdAndUpdate(req.user._id, { name, about }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
-        throw new errUserId();
+        throw new ErrUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'ValidationError') {
-        throw new invalidData();
+        throw new InvalidData();
       }
     });
 };
@@ -120,13 +105,29 @@ const changeAvatar = (req, res) => {
   User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
-        throw new errUserId();
+        throw new ErrUserId();
       } else {
         res.status(200).send(user);
       }
     }).catch((err) => {
       if (err.name === 'ValidationError') {
-        throw new invalidData();
+        throw new InvalidData();
+      }
+    });
+};
+
+const getUser = (req, res) => {
+  const userId = req.user._id;
+  User.findById(userId)
+    .then((user) => {
+      if (!user) {
+        throw new ErrUserId();
+      }
+      return res.status(200).send({ data: user });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        throw new InvalidData();
       }
     });
 };
@@ -134,6 +135,7 @@ const changeAvatar = (req, res) => {
 module.exports = {
   getUsers,
   getUser,
+  getUserId,
   postUser,
   changeUserData,
   changeAvatar,

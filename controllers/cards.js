@@ -1,18 +1,18 @@
 const Card = require('../models/card');
 
-const invalidData = () => {
+const InvalidData = () => {
   const error = new Error('Переданы некоректные данные');
   error.statusCode = 400;
   throw error;
 };
 
-const errCardId = () => {
+const ErrCardId = () => {
   const error = new Error('Карточка с указанным _id не найдена');
   error.statusCode = 404;
   throw error;
 };
 
-const notDeleteCardId = () => {
+const NotDeleteCardId = () => {
   const error = new Error('Чужую карточку удалить нельзя');
   error.statusCode = 403;
   throw error;
@@ -28,7 +28,7 @@ const postCard = (req, res) => {
   Card.create({ owner, name, link }).then((card) => res.status(201).send(card))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        throw new invalidData();
+        throw new InvalidData();
       }
     });
 };
@@ -36,15 +36,15 @@ const postCard = (req, res) => {
 const deleteCard = (req, res) => {
   Card.findOneAndDelete({ _id: req.params.cardId }).then((card) => {
     if (!card) {
-      throw new errCardId();
-    } else if (card.owner !== req.user.cardId) {
-      throw new notDeleteCardId();
+      throw new ErrCardId();
+    } else if (card.owner !== req.user.cardId.toSting()) {
+      throw new NotDeleteCardId();
     } else {
       res.status(200).send(card);
     }
   }).catch((err) => {
     if (err.name === 'CastError') {
-      throw new invalidData();
+      throw new InvalidData();
     }
   });
 };
@@ -56,13 +56,13 @@ const addCardLike = (req, res) => {
     { new: true },
   ).then((card) => {
     if (!card) {
-      throw new errCardId();
+      throw new ErrCardId();
     } else {
       res.status(200).send(card);
     }
   }).catch((err) => {
     if (err.name === 'CastError') {
-      throw new invalidData();
+      throw new InvalidData();
     }
   });
 };
@@ -74,13 +74,13 @@ const deleteCardLike = (req, res) => {
     { new: true },
   ).then((card) => {
     if (!card) {
-      throw new errCardId();
+      throw new ErrCardId();
     } else {
       res.status(200).send(card);
     }
   }).catch((err) => {
     if (err.name === 'CastError') {
-      throw new invalidData();
+      throw new InvalidData();
     }
   });
 };
